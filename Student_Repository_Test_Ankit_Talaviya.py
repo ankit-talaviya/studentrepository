@@ -6,7 +6,7 @@ Created on Wed Mar 30 10:57:18 2020
 """
 
 import unittest
-from HW09_Ankit_Talaviya import Student, Instructor, Repository
+from Student_Repository_Ankit_Talaviya import Student, Instructor, Repository
 
 class TestRepository(unittest.TestCase):
 
