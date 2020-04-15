@@ -8,6 +8,7 @@ Created on Wed Mar 30 08:33:50 2020
 from collections import defaultdict
 from typing import Dict, DefaultDict, Iterator, Tuple, List, Set
 from prettytable import PrettyTable
+import sqlite3
 import os
 
 
@@ -48,7 +49,7 @@ class Major:
         gpa: float = 0.0
         GPA: float = 0.0
         
-        grade_point: Dict[str, int] = {'A':4.0, 'A-':3.75,'B+':3.25, 'B':3.0, 'B-':2.75, 'C+':2.75, 'C':2.0, 'C-':0, 'D+':0, 'D':0, 'D-':0, 'F':0}
+        grade_point: Dict[str, float] = {'A':4.0, 'A-':3.75,'B+':3.25, 'B':3.0, 'B-':2.75, 'C+':2.75, 'C':2.0, 'C-':0, 'D+':0, 'D':0, 'D-':0, 'F':0}
         for grade in completed_course.values():
             for grd, pnt in grade_point.items():
                 if grade == grd:
@@ -85,7 +86,7 @@ class Student:
         
         major, passed, remaining_req, remaining_ele, GPA = self._major.remaining_course(self._cwid, self._course)
         
-        return [self._cwid, self._name, major, sorted(passed), remaining_req, remaining_ele, GPA]
+        return [self._cwid, self._name, major, sorted(passed), sorted(remaining_req), sorted(remaining_ele), GPA]
 
 class Instructor:
     """ Class that represent instructors """
@@ -121,6 +122,7 @@ class Repository:
         self.major_prettytable()
         self.student_prettytable()
         self.instructor_prettytable()
+        self.student_grade_prettytable()
 
 
     def file_reader( self, path: str, fields: int, sep: str, header: bool = False) -> Iterator[Tuple[str]]:
@@ -158,7 +160,7 @@ class Repository:
     def read_students(self, path: str) -> None:
         """ Analyze the information from students.txt file """
         try:
-            for cwid, name, major in self.file_reader(os.path.join(self._path, 'students.txt'), 3, sep = ";", header = True):
+            for cwid, name, major in self.file_reader(os.path.join(self._path, 'students.txt'), 3, sep = "\t", header = True):
                 if cwid in self._students:
                     print(f"{cwid} is already exists")
                 else:
@@ -170,7 +172,7 @@ class Repository:
     def read_instructors(self, path: str) -> None:
         """ Analyze the information from instructors.txt file """
         try:
-            for cwid, name, dept in self.file_reader(os.path.join(self._path, 'instructors.txt'), 3, sep = "|", header = True):
+            for cwid, name, dept in self.file_reader(os.path.join(self._path, 'instructors.txt'), 3, sep = "\t", header = True):
                 if cwid in self._instructors:
                     print(f"{cwid} is already exists")
                 else:
@@ -182,7 +184,7 @@ class Repository:
     def read_grades(self, path: str) -> None:
         """ Analyze the information from grades.txt file """
         try:
-            for student_cwid, course, grade, instructor_cwid in self.file_reader(os.path.join(self._path, 'grades.txt'), 4, sep ='|', header = True):
+            for student_cwid, course, grade, instructor_cwid in self.file_reader(os.path.join(self._path, 'grades.txt'), 4, sep ='\t', header = True):
                 if student_cwid in self._students:
                     self._students[student_cwid].add_course_grade(course, grade) 
                 else:
@@ -222,6 +224,31 @@ class Repository:
                 pt.add_row(inst_row)
         print("Instructor Summary")
         print(pt)
+
+
+    def student_grades_table_db(self, db_path: str) -> tuple:
+        """ print prettytable with student and grade information from database """
+        try:
+            db: sqlite3.Connection = sqlite3.connect(db_path)
+        except sqlite3.OperationalError as e:
+            print(e)
+        else:
+            try:
+                query = "select s.Name as Name, s.CWID, g.Course, g.Grade, i.Name as Instructor from students s, grades g, instructors i where s.CWID = g.StudentCWID and i.CWID = g.InstructorCWID order by s.Name"
+                for row in db.execute(query):
+                    yield(row)
+            except sqlite3.OperationalError as e:
+                print(e)
+
+
+    def student_grade_prettytable(self) -> None:
+        """ Print prettytable student grade and instructor information """
+        pt = PrettyTable(field_names = ["Name", "CWID", "Course", "Grade", "Instructor"])
+        for row in self.student_grades_table_db("C:/sqlite/810_startup.db"):
+            pt.add_row(row)
+        print("Student Grade Summary")
+        print(pt)
+
 
 
 def main():
